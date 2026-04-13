@@ -5,120 +5,585 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #0f0f0f; color: #ddd; padding: 20px; max-width: 900px; margin: auto; line-height: 1.6; }
-        h1 { color: #fff; text-align: center; }
-        .box { background: #1f1f1f; padding: 25px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #ffcc00; }
-        .highlight { color: #ffcc00; font-weight: bold; }
-        .upload-area { border: 3px dashed #555; padding: 50px; text-align: center; margin: 30px 0; border-radius: 12px; background: #1a1a1a; transition: border-color 0.2s; cursor: pointer; }
-        .upload-area.dragover { border-color: #ffcc00; background: #222; }
-        button { background: #ffcc00; color: #000; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; }
-        button:hover { background: #ffd633; }
-        button:disabled { background: #666; color: #999; cursor: not-allowed; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #444; }
-        th { background: #2a2a2a; }
-        .term { border-right: 3px solid #ffcc00; font-weight: bold; width: 35%; }
-        .status { font-size: 14px; color: #aaa; margin-top: 10px; min-height: 20px; }
-        .status.error { color: #ff6666; }
-        .status.success { color: #66cc66; }
-        .file-list { text-align: left; margin: 10px 0; font-size: 14px; }
-        .file-item { padding: 4px 0; color: #aaa; }
-        .file-item.parsed { color: #66cc66; }
-        .file-item.failed { color: #ff6666; }
-        .manual-input { margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
-        .manual-input label { display: block; margin-bottom: 5px; font-size: 14px; color: #aaa; }
-        .manual-input input { background: #2a2a2a; border: 1px solid #555; color: #ddd; padding: 8px; border-radius: 4px; width: 180px; font-size: 15px; }
-        #loading { display: none; color: #ffcc00; text-align: center; padding: 10px; }
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #555; border-top-color: #ffcc00; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #0a0f1e;
+            --surface:   #111827;
+            --surface2:  #1a2438;
+            --border:    #1f2f4a;
+            --teal:      #00d4aa;
+            --teal-dim:  #00a888;
+            --text:      #e2e8f0;
+            --muted:     #7a8fa6;
+            --red:       #ff6b6b;
+            --green:     #4ade80;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* ── NAV ── */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(10,15,30,0.95);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+        }
+        .logo {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--teal);
+            letter-spacing: -0.5px;
+        }
+        .nav-cta {
+            background: var(--teal);
+            color: #000;
+            border: none;
+            padding: 9px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .nav-cta:hover { background: var(--teal-dim); }
+
+        /* ── HERO ── */
+        .hero {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 90px 24px 70px;
+            text-align: center;
+        }
+        .hero-eyebrow {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 20px;
+        }
+        .hero h1 {
+            font-size: clamp(36px, 5vw, 58px);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -1px;
+            margin-bottom: 24px;
+            color: #fff;
+        }
+        .hero h1 em {
+            font-style: normal;
+            color: var(--teal);
+        }
+        .hero-sub {
+            font-size: 18px;
+            color: var(--muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            background: var(--teal);
+            color: #000;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary:hover { background: var(--teal-dim); }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+
+        /* ── SOCIAL PROOF STRIP ── */
+        .proof-strip {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 18px 24px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--muted);
+        }
+        .proof-strip strong { color: var(--text); }
+
+        /* ── PAIN SECTION ── */
+        .section {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 80px 24px;
+        }
+        .section-label {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 14px;
+        }
+        .section h2 {
+            font-size: clamp(26px, 3.5vw, 38px);
+            font-weight: 700;
+            line-height: 1.25;
+            margin-bottom: 18px;
+            color: #fff;
+        }
+        .section p {
+            font-size: 17px;
+            color: var(--muted);
+            max-width: 620px;
+            line-height: 1.75;
+        }
+
+        .pain-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 40px;
+        }
+        .pain-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+        .pain-card .quote {
+            font-size: 15px;
+            color: var(--text);
+            font-style: italic;
+            line-height: 1.65;
+        }
+        .pain-card .attribution {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 12px;
+        }
+
+        /* ── HOW IT WORKS ── */
+        .how-bg {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0;
+            margin-top: 50px;
+        }
+        .step {
+            padding: 10px 30px 10px 0;
+            position: relative;
+        }
+        .step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: 0;
+            top: 24px;
+            color: var(--teal);
+            font-size: 22px;
+        }
+        .step-num {
+            font-size: 40px;
+            font-weight: 800;
+            color: var(--teal);
+            opacity: 0.25;
+            line-height: 1;
+            margin-bottom: 10px;
+        }
+        .step h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .step p {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* ── TOOL SECTION ── */
+        #tool {
+            scroll-margin-top: 80px;
+        }
+        .tool-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .tool-header h2 {
+            font-size: clamp(26px, 3.5vw, 36px);
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .tool-header p {
+            font-size: 16px;
+            color: var(--muted);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            padding: 50px 30px;
+            text-align: center;
+            border-radius: 12px;
+            background: var(--surface);
+            transition: border-color 0.2s, background 0.2s;
+            cursor: pointer;
+        }
+        .upload-area.dragover {
+            border-color: var(--teal);
+            background: var(--surface2);
+        }
+        .upload-area p { color: var(--muted); margin-bottom: 20px; font-size: 15px; }
+        .upload-area p strong { color: var(--text); }
+
+        .manual-input { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .manual-input label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--muted); }
+        .manual-input input {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 180px;
+            font-size: 15px;
+        }
+
+        #loading { display: none; color: var(--teal); text-align: center; padding: 12px; }
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid var(--border); border-top-color: var(--teal);
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+            vertical-align: middle; margin-right: 8px;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .file-list { text-align: left; margin: 14px 0; font-size: 14px; }
+        .file-item { padding: 4px 0; color: var(--muted); }
+        .file-item.parsed { color: var(--green); }
+        .file-item.failed { color: var(--red); }
+        .status { font-size: 14px; color: var(--muted); margin-top: 10px; min-height: 20px; }
+        .status.error { color: var(--red); }
+        .status.success { color: var(--green); }
         #file-input { display: none; }
+
+        /* ── REPORT CARDS ── */
+        .box {
+            background: var(--surface);
+            padding: 28px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid var(--teal);
+        }
+        .box h2 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+        .box p { margin-bottom: 8px; font-size: 15px; }
+        .highlight { color: var(--teal); font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+        th { background: var(--surface2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .term { border-right: 3px solid var(--teal); font-weight: bold; width: 35%; color: var(--text); }
+
+        .pl-input {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 140px;
+            font-size: 16px;
+        }
+
+        /* ── PRICING ── */
+        .pricing-bg {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .pricing-card {
+            max-width: 420px;
+            margin: 40px auto 0;
+            background: var(--bg);
+            border: 1px solid var(--teal);
+            border-radius: 14px;
+            padding: 36px;
+            text-align: center;
+        }
+        .pricing-card .price {
+            font-size: 52px;
+            font-weight: 800;
+            color: var(--teal);
+            line-height: 1;
+        }
+        .pricing-card .price sup { font-size: 24px; vertical-align: super; }
+        .pricing-card .price-desc {
+            font-size: 15px;
+            color: var(--muted);
+            margin: 8px 0 28px;
+        }
+        .pricing-features {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 28px;
+        }
+        .pricing-features li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 15px;
+            color: var(--text);
+        }
+        .pricing-features li::before {
+            content: '✓ ';
+            color: var(--teal);
+            font-weight: 700;
+        }
+        .pricing-features li:last-child { border-bottom: none; }
+
+        /* ── BUTTONS ── */
+        button.primary, .btn-primary {
+            background: var(--teal);
+            color: #000;
+            border: none;
+            padding: 13px 26px;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 7px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button.primary:hover { background: var(--teal-dim); }
+        button.primary:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        /* ── FOOTER ── */
+        footer {
+            text-align: center;
+            padding: 40px 24px;
+            font-size: 13px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+        }
+        footer a { color: var(--teal); text-decoration: none; }
+
+        @media (max-width: 600px) {
+            nav { padding: 16px 20px; }
+            .step:not(:last-child)::after { display: none; }
+        }
     </style>
 </head>
 <body>
-    <h1>Unspun</h1>
-    <p style="text-align:center; font-size:18px;"><strong>Confused by your digital ad spend?</strong><br>Here's a simple, honest breakdown of what you're actually paying for — no jargon, no fluff, just clear answers.</p>
 
-    <div class="upload-area" id="drop-zone">
-        <p>Drop your agency invoice and monthly report here<br><span style="font-size:14px; color:#888;">PDF or CSV &nbsp;·&nbsp; Drop multiple files at once</span></p>
-        <button onclick="document.getElementById('file-input').click()">Choose Files</button>
-        <input type="file" id="file-input" multiple accept=".pdf,.csv">
-        <div class="file-list" id="file-list"></div>
-        <div class="manual-input" id="manual-fee-row" style="display:none">
-            <label>No invoice detected — enter your agency fee manually:</label>
-            <input type="number" id="manual-fee" placeholder="e.g. 1408" oninput="applyManualFee()">
+    <!-- NAV -->
+    <nav>
+        <span class="logo">unspun</span>
+        <a href="#tool" class="nav-cta">Run My Audit</a>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <p class="hero-eyebrow">Ad spend clarity for small business</p>
+        <h1>Your money. Their jargon.<br><em>Our translation.</em></h1>
+        <p class="hero-sub">We take your confusing agency reports and show you what's really happening with your money — in plain English, in under 60 seconds.</p>
+        <div class="hero-actions">
+            <a href="#tool" class="btn-primary">Run a Free Audit</a>
+            <a href="#how-it-works" class="btn-ghost">See how it works</a>
         </div>
-        <div id="loading"><span class="spinner"></span>Reading files…</div>
-        <div class="status" id="upload-status"></div>
+    </section>
+
+    <!-- SOCIAL PROOF STRIP -->
+    <div class="proof-strip">
+        Built for business owners who are <strong>paying for ads</strong> but can't tell if they're working.
     </div>
 
-    <div id="report" style="display:none">
-
-        <div class="box">
-            <h2>Your Marketing Spend Breakdown</h2>
-            <p><strong>Agency Fee</strong>: $<span id="r-agency-fee">—</span></p>
-            <p><strong>Actual Google Ad Spend</strong>: $<span id="r-ad-spend">—</span></p>
-            <p><strong style="color:#ff6666">Total Cost This Month</strong>: <span class="highlight">$<span id="r-total">—</span></span></p>
+    <!-- PAIN SECTION -->
+    <section class="section">
+        <p class="section-label">Sound familiar?</p>
+        <h2>You're paying real money.<br>Getting confusing reports.</h2>
+        <p>Marketing agencies send monthly PDFs full of terms like "CPC," "blended ROAS," and "conversion attribution" — and most business owners just nod and keep paying.</p>
+        <div class="pain-grid">
+            <div class="pain-card">
+                <p class="quote">"I get a report every month but I honestly have no idea if the ads are working or not."</p>
+                <p class="attribution">— Restaurant owner, running $2k/mo in Google Ads</p>
+            </div>
+            <div class="pain-card">
+                <p class="quote">"My agency shows me impressions going up but my phone isn't ringing any more than before."</p>
+                <p class="attribution">— HVAC contractor, paying $1,400/mo agency fee</p>
+            </div>
+            <div class="pain-card">
+                <p class="quote">"I asked them to explain the report and they sent me a longer, more confusing email."</p>
+                <p class="attribution">— Boutique owner, 18 months into an ad contract</p>
+            </div>
         </div>
+    </section>
 
-        <div class="box">
-            <h2>What You Got This Month</h2>
-            <p><strong>Impressions</strong>: <span id="r-impressions">—</span> → Your ad was shown that many times on Google</p>
-            <p><strong>Clicks</strong>: <span id="r-clicks">—</span> at <strong>$<span id="r-cpc">—</span></strong> each = <strong>$<span id="r-ad-spend-2">—</span></strong> total ad spend</p>
-            <p><strong>Conversions</strong>: <span id="r-conversions">—</span> at <strong>$<span id="r-cost-per-conv">—</span></strong> ad-only cost each</p>
-            <p><strong>Blended Cost per Conversion</strong>: <strong>$<span id="r-blended">—</span></strong></p>
-        </div>
-
-        <div class="box">
-            <h2>Profit - Loss Calculator</h2>
-            <p>Average value per new customer:
-            <input type="number" id="value" value="300" style="width:140px; padding:8px; font-size:16px; background:#2a2a2a; border:1px solid #555; color:#ddd; border-radius:4px;">
-            <button onclick="calculate()" style="margin-left:10px;">Calculate</button></p>
-            <div id="result" style="font-size:19px; margin-top:15px; font-weight:bold"></div>
-            <p style="font-size:14px; color:#888; margin-top:10px;">Based on the blended cost (ad spend + agency fee) per conversion.</p>
-        </div>
-
-        <div class="box">
-            <h2>Simple Terms Explained</h2>
-            <table>
-                <tr><th class="term">Term</th><th>Simple Meaning</th></tr>
-                <tr><td class="term">Agency Fee</td><td>Money you pay the marketing company for managing your ads.</td></tr>
-                <tr><td class="term">Actual Ad Spend</td><td>Real dollars Google charged for showing your ads.</td></tr>
-                <tr><td class="term">Impressions</td><td>How many times your ad appeared on Google (even if no one clicked).</td></tr>
-                <tr><td class="term">CPC (Cost Per Click)</td><td>How much you paid Google every single time someone clicked your ad.</td></tr>
-                <tr><td class="term">Clicks</td><td>How many people actually clicked your ad.</td></tr>
-                <tr><td class="term">Conversions</td><td>How many people took action (called, filled a form, booked, etc.).</td></tr>
-                <tr><td class="term">Cost per Conversion</td><td>How much you spent on ads to get one conversion.</td></tr>
-                <tr><td class="term">Blended Cost</td><td>The real total cost after adding the agency fee.</td></tr>
-            </table>
-        </div>
-
-        <div class="box">
-            <h2>Share With Your Network</h2>
-            <p>Help another business owner stop the confusion and wasted money.</p>
-            <p>• You get <strong>$10 credit</strong> toward your next month</p>
-            <p>• They get <strong>$15 off</strong> their first month + free audit</p>
-            <button onclick="alert('Referral link generated!\n\nhttps://unspun.report/ref/YOURCODE123\n\nShare this with other small business owners running Google Ads.')">Generate My Referral Link</button>
-        </div>
+    <!-- HOW IT WORKS -->
+    <div class="how-bg" id="how-it-works">
+        <section class="section">
+            <p class="section-label">How it works</p>
+            <h2>Three steps. No spreadsheets.<br>No expertise required.</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">01</div>
+                    <h3>Upload your reports</h3>
+                    <p>Drop in your agency invoice and your monthly Google Ads report. PDF or CSV — both work.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">02</div>
+                    <h3>We read the numbers</h3>
+                    <p>Unspun pulls out the only figures that matter: what you spent, what you got, and what it actually cost per customer.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">03</div>
+                    <h3>See the real picture</h3>
+                    <p>Plain-English breakdown, a profit/loss calculator, and a glossary so you can ask better questions next time.</p>
+                </div>
+            </div>
+        </section>
     </div>
+
+    <!-- TOOL -->
+    <section class="section" id="tool">
+        <div class="tool-header">
+            <p class="section-label">Free audit</p>
+            <h2>Drop your reports here</h2>
+            <p>Your files never leave your browser. Nothing is uploaded to a server.</p>
+        </div>
+
+        <div class="upload-area" id="drop-zone">
+            <p><strong>Drag and drop your files</strong><br>Agency invoice + monthly report &nbsp;·&nbsp; PDF or CSV</p>
+            <button class="primary" style="width:auto; padding: 12px 28px;" onclick="document.getElementById('file-input').click()">Choose Files</button>
+            <input type="file" id="file-input" multiple accept=".pdf,.csv">
+            <div class="file-list" id="file-list"></div>
+            <div class="manual-input" id="manual-fee-row" style="display:none">
+                <label>No invoice detected — enter your agency fee manually:</label>
+                <input type="number" class="pl-input" id="manual-fee" placeholder="e.g. 1408" oninput="applyManualFee()">
+            </div>
+            <div id="loading"><span class="spinner"></span>Reading files…</div>
+            <div class="status" id="upload-status"></div>
+        </div>
+
+        <div id="report" style="display:none">
+
+            <div class="box">
+                <h2>Your Marketing Spend Breakdown</h2>
+                <p><strong>Agency Fee</strong>: $<span id="r-agency-fee">—</span></p>
+                <p><strong>Actual Google Ad Spend</strong>: $<span id="r-ad-spend">—</span></p>
+                <p><strong style="color:var(--red)">Total Cost This Month</strong>: <span class="highlight">$<span id="r-total">—</span></span></p>
+            </div>
+
+            <div class="box">
+                <h2>What You Got This Month</h2>
+                <p><strong>Impressions</strong>: <span id="r-impressions">—</span> → Your ad was shown that many times on Google</p>
+                <p><strong>Clicks</strong>: <span id="r-clicks">—</span> at <strong>$<span id="r-cpc">—</span></strong> each = <strong>$<span id="r-ad-spend-2">—</span></strong> total ad spend</p>
+                <p><strong>Conversions</strong>: <span id="r-conversions">—</span> at <strong>$<span id="r-cost-per-conv">—</span></strong> ad-only cost each</p>
+                <p><strong>Blended Cost per Conversion</strong>: <strong>$<span id="r-blended">—</span></strong></p>
+            </div>
+
+            <div class="box">
+                <h2>Profit / Loss Calculator</h2>
+                <p style="margin-bottom:16px;">Average value per new customer:
+                <input type="number" class="pl-input" id="value" value="300">
+                <button class="primary" onclick="calculate()" style="width:auto; margin-left:10px; padding:10px 20px;">Calculate</button></p>
+                <div id="result" style="font-size:19px; margin-top:8px; font-weight:bold"></div>
+                <p style="font-size:13px; color:var(--muted); margin-top:10px;">Based on blended cost (ad spend + agency fee) per conversion.</p>
+            </div>
+
+            <div class="box">
+                <h2>Simple Terms Explained</h2>
+                <table>
+                    <tr><th class="term">Term</th><th>Simple Meaning</th></tr>
+                    <tr><td class="term">Agency Fee</td><td>Money you pay the marketing company for managing your ads.</td></tr>
+                    <tr><td class="term">Actual Ad Spend</td><td>Real dollars Google charged for showing your ads.</td></tr>
+                    <tr><td class="term">Impressions</td><td>How many times your ad appeared on Google (even if no one clicked).</td></tr>
+                    <tr><td class="term">CPC (Cost Per Click)</td><td>How much you paid Google every single time someone clicked your ad.</td></tr>
+                    <tr><td class="term">Clicks</td><td>How many people actually clicked your ad.</td></tr>
+                    <tr><td class="term">Conversions</td><td>How many people took action (called, filled a form, booked, etc.).</td></tr>
+                    <tr><td class="term">Cost per Conversion</td><td>How much you spent on ads to get one conversion.</td></tr>
+                    <tr><td class="term">Blended Cost</td><td>The real total cost after adding the agency fee.</td></tr>
+                </table>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- PRICING -->
+    <div class="pricing-bg">
+        <section class="section" style="text-align:center;">
+            <p class="section-label">Pricing</p>
+            <h2>Simple. No subscription.</h2>
+            <p style="margin: 0 auto; max-width: 500px;">Pay once, run three audits. Use them all at once or spread them over time — no expiry, no auto-renew.</p>
+            <div class="pricing-card">
+                <div class="price"><sup>$</sup>12.99</div>
+                <div class="price-desc">3 audits · one-time payment · no subscription</div>
+                <ul class="pricing-features">
+                    <li>Upload PDF or CSV reports</li>
+                    <li>Full spend breakdown</li>
+                    <li>Profit / Loss calculator</li>
+                    <li>Plain-English glossary</li>
+                    <li>Shareable results link</li>
+                </ul>
+                <button class="primary" onclick="alert('Payment flow coming soon.')">Get 3 Audits — $12.99</button>
+                <p style="font-size:13px; color:var(--muted); margin-top:14px;">First audit is always free. No card required.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- REFERRAL -->
+    <section class="section" style="text-align:center; max-width:620px;">
+        <p class="section-label">Referral program</p>
+        <h2>Know another business owner in the dark?</h2>
+        <p style="margin: 0 auto 32px;">Send them your referral link. When they run their first paid audit, you get <strong style="color:var(--teal)">$20 credit</strong> toward your next pack. They get <strong style="color:var(--teal)">$5 off</strong> theirs.</p>
+        <button class="primary" style="max-width:320px; margin:0 auto;" onclick="alert('Referral link generated!\n\nhttps://unspun.report/ref/YOURCODE123\n\nShare this with other small business owners running Google Ads.')">Generate My Referral Link</button>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <p style="font-size:16px; font-weight:700; color:var(--teal); margin-bottom:8px;">unspun</p>
+        <p>Your money. Their jargon. Our translation.</p>
+        <p style="margin-top:16px;"><a href="mailto:hello@unspun.report">hello@unspun.report</a></p>
+        <p style="margin-top:20px; font-size:12px;">© 2025 Unspun. Your files are processed in your browser and never stored.</p>
+    </footer>
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        // Parsed data store
         const data = {
-            agencyFee: null,
-            adSpend: null,
-            impressions: null,
-            clicks: null,
-            cpc: null,
-            conversions: null,
-            costPerConversion: null
+            agencyFee: null, adSpend: null, impressions: null,
+            clicks: null, cpc: null, conversions: null, costPerConversion: null
         };
 
-        // ── File input / drag-and-drop wiring ──────────────────────────────────
-
         const dropZone = document.getElementById('drop-zone');
-
         dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
         dropZone.addEventListener('drop', e => {
@@ -126,20 +591,15 @@
             dropZone.classList.remove('dragover');
             handleFiles(Array.from(e.dataTransfer.files));
         });
-
         document.getElementById('file-input').addEventListener('change', e => {
             handleFiles(Array.from(e.target.files));
         });
 
-        // ── Main entry point ───────────────────────────────────────────────────
-
         async function handleFiles(files) {
             if (!files.length) return;
-
             setStatus('', '');
             document.getElementById('loading').style.display = 'block';
             document.getElementById('report').style.display = 'none';
-
             const fileListEl = document.getElementById('file-list');
             fileListEl.innerHTML = '';
 
@@ -148,17 +608,11 @@
                 item.className = 'file-item';
                 item.textContent = '⏳ ' + file.name;
                 fileListEl.appendChild(item);
-
                 try {
                     const ext = file.name.split('.').pop().toLowerCase();
-                    if (ext === 'pdf') {
-                        await parsePDF(file);
-                    } else if (ext === 'csv') {
-                        const text = await file.text();
-                        parseCSV(text);
-                    } else {
-                        throw new Error('Unsupported file type');
-                    }
+                    if (ext === 'pdf') await parsePDF(file);
+                    else if (ext === 'csv') { const text = await file.text(); parseCSV(text); }
+                    else throw new Error('Unsupported file type');
                     item.className = 'file-item parsed';
                     item.textContent = '✓ ' + file.name;
                 } catch (err) {
@@ -168,8 +622,6 @@
             }
 
             document.getElementById('loading').style.display = 'none';
-
-            // Show manual fee input if no invoice was found
             const hasAdData = data.adSpend !== null;
             const hasAgencyFee = data.agencyFee !== null;
             document.getElementById('manual-fee-row').style.display = (hasAdData && !hasAgencyFee) ? 'block' : 'none';
@@ -182,30 +634,20 @@
             }
         }
 
-        // ── PDF parsing ────────────────────────────────────────────────────────
-
         async function parsePDF(file) {
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
             const pages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
                 pages.push(reconstructPageText(textContent.items));
             }
-
             const fullText = pages.join('\n');
-
-            if (looksLikeInvoice(fullText)) {
-                parseInvoiceText(fullText);
-            }
-            if (looksLikeReport(fullText)) {
-                parseReportText(pages);
-            }
+            if (looksLikeInvoice(fullText)) parseInvoiceText(fullText);
+            if (looksLikeReport(fullText)) parseReportText(pages);
         }
 
-        // Sort text items by position to reconstruct reading order
         function reconstructPageText(items) {
             const filtered = items.filter(i => i.str.trim());
             const rows = {};
@@ -220,97 +662,56 @@
             ).join('\n');
         }
 
-        function looksLikeInvoice(text) {
-            return /RECEIPT|INVOICE/i.test(text) && /TOTAL/i.test(text);
-        }
-
-        function looksLikeReport(text) {
-            return /Google Ads/i.test(text) && /Impressions/i.test(text) && /Conversions/i.test(text);
-        }
+        function looksLikeInvoice(text) { return /RECEIPT|INVOICE/i.test(text) && /TOTAL/i.test(text); }
+        function looksLikeReport(text) { return /Google Ads/i.test(text) && /Impressions/i.test(text) && /Conversions/i.test(text); }
 
         function parseInvoiceText(text) {
             const m = text.match(/TOTAL\s+\$?([\d,]+\.?\d*)/i);
-            if (m) {
-                data.agencyFee = parseNum(m[1]);
-            }
+            if (m) data.agencyFee = parseNum(m[1]);
         }
 
         function parseReportText(pages) {
-            // Find the Google Ads - Campaigns page (most reliable summary)
             for (const pageText of pages) {
                 if (!/Google Ads.*Campaigns?/i.test(pageText)) continue;
-
-                // Single-row summary: Avg CPC  Clicks  Conversions  Cost  Cost/Conversion  Impressions
                 const m = pageText.match(
                     /Avg\.?\s*CPC\s+Clicks\s+Conversions?\s+Cost\s+Cost\s*\/\s*Conversion\s+Impressions\s+\$([\d.]+)\s+([\d,]+)\s+([\d.]+)\s+\$([\d,]+(?:\.\d+)?)\s+\$([\d,]+(?:\.\d+)?)\s+([\d,]+)/i
                 );
                 if (m) {
-                    data.cpc = parseNum(m[1]);
-                    data.clicks = parseNum(m[2]);
-                    data.conversions = parseNum(m[3]);
-                    data.adSpend = parseNum(m[4]);
-                    data.costPerConversion = parseNum(m[5]);
-                    data.impressions = parseNum(m[6]);
+                    data.cpc = parseNum(m[1]); data.clicks = parseNum(m[2]);
+                    data.conversions = parseNum(m[3]); data.adSpend = parseNum(m[4]);
+                    data.costPerConversion = parseNum(m[5]); data.impressions = parseNum(m[6]);
                     return;
                 }
-
-                // Fallback: Ad Groups page splits metrics across two rows
                 const m1 = pageText.match(/\$(\d+\.\d+)\s+([\d,]+)\s+[\d.]+%\s+([\d.]+)/);
                 const m2 = pageText.match(/\$([\d,]+(?:\.\d+)?)\s+\$([\d,]+(?:\.\d+)?)\s+([\d,]+)\s*\n/);
-                if (m1) {
-                    data.cpc = parseNum(m1[1]);
-                    data.clicks = parseNum(m1[2]);
-                    data.conversions = parseNum(m1[3]);
-                }
-                if (m2) {
-                    data.adSpend = parseNum(m2[1]);
-                    data.costPerConversion = parseNum(m2[2]);
-                    data.impressions = parseNum(m2[3]);
-                }
+                if (m1) { data.cpc = parseNum(m1[1]); data.clicks = parseNum(m1[2]); data.conversions = parseNum(m1[3]); }
+                if (m2) { data.adSpend = parseNum(m2[1]); data.costPerConversion = parseNum(m2[2]); data.impressions = parseNum(m2[3]); }
                 if (data.adSpend) return;
             }
-
-            // Last resort: scan all Google Ads pages
             for (const pageText of pages) {
                 if (!/Google Ads/i.test(pageText)) continue;
                 const m1 = pageText.match(/\$(\d+\.\d+)\s+([\d,]+)\s+[\d.]+%\s+([\d.]+)/);
                 const m2 = pageText.match(/Cost\s+Cost\s*\/\s*Conversion\s+Impressions\s+\$([\d,]+(?:\.\d+)?)\s+\$([\d,]+(?:\.\d+)?)\s+([\d,]+)/i);
                 if (m1 && m2) {
-                    data.cpc = parseNum(m1[1]);
-                    data.clicks = parseNum(m1[2]);
-                    data.conversions = parseNum(m1[3]);
-                    data.adSpend = parseNum(m2[1]);
-                    data.costPerConversion = parseNum(m2[2]);
-                    data.impressions = parseNum(m2[3]);
+                    data.cpc = parseNum(m1[1]); data.clicks = parseNum(m1[2]); data.conversions = parseNum(m1[3]);
+                    data.adSpend = parseNum(m2[1]); data.costPerConversion = parseNum(m2[2]); data.impressions = parseNum(m2[3]);
                     return;
                 }
             }
         }
 
-        // ── CSV parsing ────────────────────────────────────────────────────────
-
         function parseCSV(text) {
             const lines = text.trim().split(/\r?\n/);
-
             let headerIdx = -1;
             for (let i = 0; i < lines.length; i++) {
-                if (/clicks/i.test(lines[i]) && /impressions/i.test(lines[i])) {
-                    headerIdx = i;
-                    break;
-                }
+                if (/clicks/i.test(lines[i]) && /impressions/i.test(lines[i])) { headerIdx = i; break; }
             }
             if (headerIdx < 0) throw new Error('No recognizable column headers found in CSV');
-
             const headers = parseCSVRow(lines[headerIdx]).map(h => h.toLowerCase().trim());
             const col = name => headers.findIndex(h => h.includes(name));
-
-            const iClicks = col('click');
-            const iImpr = col('impression');
-            const iCost = col('cost');
-            const iConv = col('conv');
-            const iCpc = col('cpc') >= 0 ? col('cpc') : col('avg. cpc');
+            const iClicks = col('click'), iImpr = col('impression'), iCost = col('cost');
+            const iConv = col('conv'), iCpc = col('cpc') >= 0 ? col('cpc') : col('avg. cpc');
             const iCostConv = headers.findIndex(h => h.includes('cost') && h.includes('conv'));
-
             let totalsRow = null;
             for (let i = headerIdx + 1; i < lines.length; i++) {
                 const row = parseCSVRow(lines[i]);
@@ -318,53 +719,36 @@
                 if (/total/i.test(row[0])) { totalsRow = row; break; }
             }
             if (!totalsRow) throw new Error('No data rows found in CSV');
-
             if (iClicks >= 0) data.clicks = parseNum(totalsRow[iClicks]);
             if (iImpr >= 0) data.impressions = parseNum(totalsRow[iImpr]);
             if (iCost >= 0 && iCostConv < 0) data.adSpend = parseNum(totalsRow[iCost]);
             if (iConv >= 0) data.conversions = parseNum(totalsRow[iConv]);
             if (iCpc >= 0) data.cpc = parseNum(totalsRow[iCpc]);
             if (iCostConv >= 0) data.costPerConversion = parseNum(totalsRow[iCostConv]);
-
-            if (data.adSpend && data.conversions && !data.costPerConversion) {
-                data.costPerConversion = data.adSpend / data.conversions;
-            }
-            if (data.adSpend && data.clicks && !data.cpc) {
-                data.cpc = data.adSpend / data.clicks;
-            }
+            if (data.adSpend && data.conversions && !data.costPerConversion) data.costPerConversion = data.adSpend / data.conversions;
+            if (data.adSpend && data.clicks && !data.cpc) data.cpc = data.adSpend / data.clicks;
         }
 
         function parseCSVRow(line) {
-            const result = [];
-            let cur = '', inQuotes = false;
+            const result = []; let cur = '', inQuotes = false;
             for (const ch of line) {
-                if (ch === '"') { inQuotes = !inQuotes; }
+                if (ch === '"') inQuotes = !inQuotes;
                 else if (ch === ',' && !inQuotes) { result.push(cur); cur = ''; }
-                else { cur += ch; }
+                else cur += ch;
             }
             result.push(cur);
             return result;
         }
 
-        // ── Display ────────────────────────────────────────────────────────────
-
         function applyManualFee() {
             const val = parseFloat(document.getElementById('manual-fee').value);
-            if (!isNaN(val) && val > 0) {
-                data.agencyFee = val;
-                displayReport();
-            }
+            if (!isNaN(val) && val > 0) { data.agencyFee = val; displayReport(); }
         }
 
         function displayReport() {
-            const fee = data.agencyFee;
-            const spend = data.adSpend;
+            const fee = data.agencyFee, spend = data.adSpend;
             const total = (fee != null && spend != null) ? fee + spend : spend;
-
-            const blended = (total != null && data.conversions)
-                ? total / data.conversions
-                : (data.costPerConversion || null);
-
+            const blended = (total != null && data.conversions) ? total / data.conversions : (data.costPerConversion || null);
             setText('r-agency-fee', fee != null ? fmt(fee) : '—');
             setText('r-ad-spend', spend != null ? fmt(spend) : '—');
             setText('r-total', total != null ? fmt(total) : '—');
@@ -375,9 +759,7 @@
             setText('r-conversions', data.conversions != null ? fmtInt(data.conversions) : '—');
             setText('r-cost-per-conv', data.costPerConversion != null ? fmt(data.costPerConversion) : '—');
             setText('r-blended', blended != null ? fmt(blended) : '—');
-
             window._blended = blended;
-
             document.getElementById('report').style.display = 'block';
         }
 
@@ -385,38 +767,25 @@
             const value = parseFloat(document.getElementById('value').value) || 0;
             const blended = window._blended;
             if (blended == null) return;
-
             const pl = value - blended;
             const resultDiv = document.getElementById('result');
             if (pl > 0) {
                 resultDiv.innerHTML = `Direct P/L: +$${pl.toFixed(2)} per conversion — You're making money.`;
-                resultDiv.style.color = 'green';
+                resultDiv.style.color = 'var(--green)';
             } else {
                 resultDiv.innerHTML = `Direct P/L: -$${Math.abs(pl).toFixed(2)} per conversion — You're losing money on these conversions.`;
-                resultDiv.style.color = 'red';
+                resultDiv.style.color = 'var(--red)';
             }
         }
-
-        // ── Helpers ────────────────────────────────────────────────────────────
 
         function parseNum(str) {
             if (str == null) return null;
             const n = parseFloat(String(str).replace(/[$,]/g, ''));
             return isNaN(n) ? null : n;
         }
-
-        function fmt(n) {
-            return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function fmtInt(n) {
-            return Math.round(n).toLocaleString('en-US');
-        }
-
-        function setText(id, val) {
-            document.getElementById(id).textContent = val;
-        }
-
+        function fmt(n) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function fmtInt(n) { return Math.round(n).toLocaleString('en-US'); }
+        function setText(id, val) { document.getElementById(id).textContent = val; }
         function setStatus(msg, type) {
             const el = document.getElementById('upload-status');
             el.textContent = msg;
@@ -424,6 +793,5 @@
         }
     </script>
 
-    <p style="text-align:center; color:#666; margin-top:40px;">Unspun — Simple. Clear. No more confusion.</p>
 </body>
 </html>
