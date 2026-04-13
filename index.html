@@ -506,7 +506,9 @@
                 <h2>What You Got This Month</h2>
                 <p><strong>Impressions</strong>: <span id="r-impressions">—</span> → Your ad was shown that many times on Google</p>
                 <p><strong>Clicks</strong>: <span id="r-clicks">—</span> at <strong>$<span id="r-cpc">—</span></strong> each = <strong>$<span id="r-ad-spend-2">—</span></strong> total ad spend</p>
+                <p><strong>Click-Through Rate (CTR)</strong>: <span id="r-ctr">—</span> → <span id="r-ctr-label">—</span></p>
                 <p><strong>Conversions</strong>: <span id="r-conversions">—</span> at <strong>$<span id="r-cost-per-conv">—</span></strong> ad-only cost each</p>
+                <p><strong>Conversion Rate</strong>: <span id="r-cvr">—</span> → <span id="r-cvr-label">—</span></p>
                 <p><strong>Blended Cost per Conversion</strong>: <strong>$<span id="r-blended">—</span></strong></p>
             </div>
 
@@ -529,6 +531,8 @@
                     <tr><td class="term">CPC (Cost Per Click)</td><td>How much you paid Google every single time someone clicked your ad.</td></tr>
                     <tr><td class="term">Clicks</td><td>How many people actually clicked your ad.</td></tr>
                     <tr><td class="term">Conversions</td><td>How many people took action (called, filled a form, booked, etc.).</td></tr>
+                    <tr><td class="term">CTR (Click-Through Rate)</td><td>The % of people who saw your ad and clicked it. Higher = more compelling ad.</td></tr>
+                    <tr><td class="term">Conversion Rate</td><td>The % of people who clicked your ad and then took action. Higher = your landing page is working.</td></tr>
                     <tr><td class="term">Cost per Conversion</td><td>How much you spent on ads to get one conversion.</td></tr>
                     <tr><td class="term">Blended Cost</td><td>The real total cost after adding the agency fee.</td></tr>
                 </table>
@@ -756,8 +760,14 @@
             setText('r-clicks', data.clicks != null ? fmtInt(data.clicks) : '—');
             setText('r-cpc', data.cpc != null ? fmt(data.cpc) : '—');
             setText('r-ad-spend-2', spend != null ? fmt(spend) : '—');
+            const ctr = (data.impressions && data.clicks) ? (data.clicks / data.impressions) * 100 : null;
+            const cvr = (data.clicks && data.conversions) ? (data.conversions / data.clicks) * 100 : null;
+            setText('r-ctr', ctr != null ? ctr.toFixed(2) + '%' : '—');
+            setText('r-ctr-label', ctr != null ? (ctr >= 5 ? 'Strong — your ad is getting attention' : ctr >= 2 ? 'Average — room to improve the ad copy' : 'Low — your ad may not be resonating') : '—');
             setText('r-conversions', data.conversions != null ? fmtInt(data.conversions) : '—');
             setText('r-cost-per-conv', data.costPerConversion != null ? fmt(data.costPerConversion) : '—');
+            setText('r-cvr', cvr != null ? cvr.toFixed(2) + '%' : '—');
+            setText('r-cvr-label', cvr != null ? (cvr >= 10 ? 'Strong — your landing page is converting well' : cvr >= 3 ? 'Average — your offer or page could be improved' : 'Low — people are clicking but not taking action') : '—');
             setText('r-blended', blended != null ? fmt(blended) : '—');
             window._blended = blended;
             document.getElementById('report').style.display = 'block';
