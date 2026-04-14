@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Payment Successful — Unspun</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0f1e; --surface: #111827; --border: #1f2f4a;
+      --teal: #00d4aa; --teal-dim: #00a888; --text: #e2e8f0; --muted: #7a8fa6;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 22px; font-weight: 700; color: var(--teal); text-decoration: none; }
+    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 48px 40px; max-width: 480px; width: 100%; text-align: center; }
+    .icon { font-size: 56px; margin-bottom: 24px; }
+    h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+    p { font-size: 16px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+    .credits-badge { display: inline-block; background: rgba(0,212,170,0.15); border: 1px solid var(--teal); color: var(--teal); font-size: 15px; font-weight: 600; padding: 8px 20px; border-radius: 20px; margin: 16px 0 24px; }
+    .btn { display: inline-block; background: var(--teal); color: #000; font-weight: 700; font-size: 15px; padding: 13px 28px; border-radius: 8px; text-decoration: none; }
+    .btn:hover { background: var(--teal-dim); }
+    .status { font-size: 14px; color: var(--muted); margin-top: 16px; min-height: 20px; }
+    .status.error { color: #ff6b6b; }
+    footer { text-align: center; padding: 24px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/" class="logo">unspun</a>
+  </nav>
+  <main>
+    <div class="card">
+      <div class="icon">✓</div>
+      <h1>Payment successful</h1>
+      <p>Your 3 audits are being added to your account now.</p>
+      <div class="credits-badge" id="credits-badge">Adding credits…</div>
+      <br>
+      <a href="/" class="btn">Run an Audit</a>
+      <div class="status" id="status"></div>
+    </div>
+  </main>
+  <footer>Unspun · <a href="mailto:support@unspun.report" style="color:var(--teal); text-decoration:none;">support@unspun.report</a></footer>
+
+  <script>
+    const SUPABASE_URL = 'https://alxqtmqsjckragnsbwqw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFseHF0bXFzamNrcmFnbnNid3F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDU3MDMsImV4cCI6MjA5MTY4MTcwM30._SklOQMaFThiIWlhfhFa9MmDqqrxDSiEohJtEjFsR_w';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const params = new URLSearchParams(window.location.search);
+      const session_id = params.get('session_id');
+
+      if (!session) {
+        document.getElementById('credits-badge').textContent = 'Sign in to claim your credits';
+        document.getElementById('status').textContent = 'You need to be signed in. Go back to the main page and sign in, then return here.';
+        document.getElementById('status').className = 'status error';
+        return;
+      }
+
+      if (!session_id) {
+        document.getElementById('credits-badge').textContent = '—';
+        document.getElementById('status').textContent = 'No session ID found. If you just paid, check your account balance on the main page.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id, access_token: session.access_token })
+        });
+        const result = await res.json();
+
+        if (result.already_processed) {
+          document.getElementById('credits-badge').textContent = 'Credits already applied ✓';
+        } else if (result.credits_added) {
+          document.getElementById('credits-badge').textContent = '+3 audits added to your account ✓';
+        } else {
+          throw new Error(result.error || 'Unknown error');
+        }
+      } catch (err) {
+        document.getElementById('credits-badge').textContent = 'Something went wrong';
+        document.getElementById('status').textContent = 'Could not verify payment: ' + err.message + '. Email support@unspun.report and we\'ll sort it out.';
+        document.getElementById('status').className = 'status error';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

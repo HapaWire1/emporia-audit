@@ -4,6 +4,7 @@
     <title>Unspun</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -396,9 +397,26 @@
         }
         footer a { color: var(--teal); text-decoration: none; }
 
+        /* ── AUTH ── */
+        .user-bar { display: flex; align-items: center; gap: 14px; font-size: 14px; }
+        .user-bar .user-email { color: var(--muted); }
+        .user-bar .credit-pill { background: rgba(0,212,170,0.15); border: 1px solid var(--teal); color: var(--teal); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+        .user-bar .sign-out-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+        .user-bar .sign-out-btn:hover { border-color: var(--teal); color: var(--teal); }
+        .auth-gate { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 40px 30px; text-align: center; }
+        .auth-gate p { color: var(--muted); margin-bottom: 20px; font-size: 15px; }
+        .auth-gate p strong { color: var(--text); }
+        .auth-input-row { display: flex; gap: 10px; max-width: 420px; margin: 0 auto; }
+        .auth-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; border-radius: 7px; font-size: 15px; }
+        .auth-input:focus { outline: none; border-color: var(--teal); }
+        .no-credits-gate { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 40px 30px; text-align: center; }
+        .no-credits-gate h3 { font-size: 20px; color: #fff; margin-bottom: 10px; }
+        .no-credits-gate p { color: var(--muted); margin-bottom: 24px; }
+
         @media (max-width: 600px) {
             nav { padding: 16px 20px; }
             .step:not(:last-child)::after { display: none; }
+            .auth-input-row { flex-direction: column; }
         }
     </style>
 </head>
@@ -407,7 +425,12 @@
     <!-- NAV -->
     <nav>
         <span class="logo">unspun</span>
-        <a href="#tool" class="nav-cta">Run My Audit</a>
+        <div id="nav-signed-out"><a href="#tool" class="nav-cta">Run My Audit</a></div>
+        <div id="nav-signed-in" class="user-bar" style="display:none">
+            <span class="credit-pill" id="nav-credits">— audits</span>
+            <span class="user-email" id="nav-email"></span>
+            <button class="sign-out-btn" onclick="signOut()">Sign out</button>
+        </div>
     </nav>
 
     <!-- HERO -->
@@ -480,17 +503,37 @@
             <p>Your files never leave your browser. Nothing is uploaded to a server.</p>
         </div>
 
-        <div class="upload-area" id="drop-zone">
-            <p><strong>Drag and drop your files</strong><br>Agency invoice + monthly report &nbsp;·&nbsp; PDF or CSV</p>
-            <button class="primary" style="width:auto; padding: 12px 28px;" onclick="document.getElementById('file-input').click()">Choose Files</button>
-            <input type="file" id="file-input" multiple accept=".pdf,.csv">
-            <div class="file-list" id="file-list"></div>
-            <div class="manual-input" id="manual-fee-row" style="display:none">
-                <label>No invoice detected — enter your agency fee manually:</label>
-                <input type="number" class="pl-input" id="manual-fee" placeholder="e.g. 1408" oninput="applyManualFee()">
+        <!-- Not signed in -->
+        <div class="auth-gate" id="auth-gate">
+            <p><strong>Sign in to run your audit</strong><br>Enter your email and we'll send you a magic link — no password needed.</p>
+            <div class="auth-input-row">
+                <input type="email" class="auth-input" id="auth-email" placeholder="your@email.com">
+                <button class="primary" style="width:auto; white-space:nowrap;" onclick="signIn()">Send Magic Link</button>
             </div>
-            <div id="loading"><span class="spinner"></span>Reading files…</div>
-            <div class="status" id="upload-status"></div>
+            <div class="status" id="auth-status" style="margin-top:14px;"></div>
+        </div>
+
+        <!-- Signed in, has credits -->
+        <div id="tool-inner" style="display:none">
+            <div class="upload-area" id="drop-zone">
+                <p><strong>Drag and drop your files</strong><br>Agency invoice + monthly report &nbsp;·&nbsp; PDF or CSV</p>
+                <button class="primary" style="width:auto; padding: 12px 28px;" onclick="document.getElementById('file-input').click()">Choose Files</button>
+                <input type="file" id="file-input" multiple accept=".pdf,.csv">
+                <div class="file-list" id="file-list"></div>
+                <div class="manual-input" id="manual-fee-row" style="display:none">
+                    <label>No invoice detected — enter your agency fee manually:</label>
+                    <input type="number" class="pl-input" id="manual-fee" placeholder="e.g. 1408" oninput="applyManualFee()">
+                </div>
+                <div id="loading"><span class="spinner"></span>Reading files…</div>
+                <div class="status" id="upload-status"></div>
+            </div>
+        </div>
+
+        <!-- Signed in, no credits -->
+        <div class="no-credits-gate" id="no-credits-gate" style="display:none">
+            <h3>You're out of audits</h3>
+            <p>Get 3 more for a one-time payment of $12.99 — no subscription.</p>
+            <a id="buy-more-btn" href="https://buy.stripe.com/test_aFa4gy7Ys4WH4twagXaEE00" class="primary" style="display:inline-block; text-align:center; text-decoration:none; width:auto; padding:13px 28px;">Get 3 Audits — $12.99</a>
         </div>
 
         <div id="report" style="display:none">
@@ -581,6 +624,89 @@
     </footer>
 
     <script>
+        // ── Supabase ───────────────────────────────────────────────────────────
+        const SUPABASE_URL = 'https://alxqtmqsjckragnsbwqw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFseHF0bXFzamNrcmFnbnNid3F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDU3MDMsImV4cCI6MjA5MTY4MTcwM30._SklOQMaFThiIWlhfhFa9MmDqqrxDSiEohJtEjFsR_w';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let currentCredits = 0;
+
+        async function initAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) await onSignedIn(session.user);
+
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (session) await onSignedIn(session.user);
+                else onSignedOut();
+            });
+        }
+
+        async function onSignedIn(user) {
+            currentUser = user;
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('audit_credits')
+                .eq('id', user.id)
+                .single();
+            currentCredits = profile?.audit_credits ?? 0;
+            document.getElementById('nav-email').textContent = user.email;
+            document.getElementById('nav-credits').textContent = currentCredits + (currentCredits === 1 ? ' audit' : ' audits');
+            document.getElementById('nav-signed-out').style.display = 'none';
+            document.getElementById('nav-signed-in').style.display = 'flex';
+            document.getElementById('auth-gate').style.display = 'none';
+            if (currentCredits > 0) {
+                document.getElementById('tool-inner').style.display = 'block';
+                document.getElementById('no-credits-gate').style.display = 'none';
+            } else {
+                document.getElementById('tool-inner').style.display = 'none';
+                document.getElementById('no-credits-gate').style.display = 'block';
+            }
+        }
+
+        function onSignedOut() {
+            currentUser = null;
+            currentCredits = 0;
+            document.getElementById('nav-signed-out').style.display = 'block';
+            document.getElementById('nav-signed-in').style.display = 'none';
+            document.getElementById('auth-gate').style.display = 'block';
+            document.getElementById('tool-inner').style.display = 'none';
+            document.getElementById('no-credits-gate').style.display = 'none';
+            document.getElementById('report').style.display = 'none';
+        }
+
+        async function signIn() {
+            const email = document.getElementById('auth-email').value.trim();
+            if (!email) return;
+            const statusEl = document.getElementById('auth-status');
+            statusEl.textContent = 'Sending…';
+            statusEl.className = 'status';
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: { emailRedirectTo: window.location.origin }
+            });
+            if (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+                statusEl.className = 'status error';
+            } else {
+                statusEl.textContent = 'Magic link sent! Check your email.';
+                statusEl.className = 'status success';
+            }
+        }
+
+        async function signOut() {
+            await supabase.auth.signOut();
+        }
+
+        async function decrementCredit() {
+            if (!currentUser) return;
+            currentCredits = Math.max(0, currentCredits - 1);
+            await supabase.from('profiles').update({ audit_credits: currentCredits }).eq('id', currentUser.id);
+            await supabase.from('audits').insert({ user_id: currentUser.id });
+            document.getElementById('nav-credits').textContent = currentCredits + (currentCredits === 1 ? ' audit' : ' audits');
+        }
+
+        // ── pdf.js ─────────────────────────────────────────────────────────────
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         const data = {
@@ -602,6 +728,8 @@
 
         async function handleFiles(files) {
             if (!files.length) return;
+            if (!currentUser) { setStatus('Please sign in first.', 'error'); return; }
+            if (currentCredits <= 0) { setStatus('No audits remaining. Purchase more to continue.', 'error'); return; }
             setStatus('', '');
             document.getElementById('loading').style.display = 'block';
             document.getElementById('report').style.display = 'none';
@@ -633,6 +761,7 @@
 
             if (hasAdData) {
                 displayReport();
+                await decrementCredit();
                 setStatus('Files processed successfully.', 'success');
             } else {
                 setStatus('Could not find Google Ads data. Make sure you uploaded the monthly marketing report PDF or a Google Ads CSV export.', 'error');
@@ -802,6 +931,8 @@
             el.textContent = msg;
             el.className = 'status' + (type ? ' ' + type : '');
         }
+
+        initAuth();
     </script>
 
 </body>

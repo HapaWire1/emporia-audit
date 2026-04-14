@@ -1,0 +1,74 @@
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const { session_id, access_token } = req.body;
+  if (!session_id || !access_token) {
+    return res.status(400).json({ error: 'Missing session_id or access_token' });
+  }
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+
+  // 1. Verify user JWT
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${access_token}`, apikey: SUPABASE_ANON_KEY }
+  });
+  if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
+  const user = await userRes.json();
+
+  // 2. Verify Stripe session is paid
+  const stripeRes = await fetch(`https://api.stripe.com/v1/checkout/sessions/${session_id}`, {
+    headers: { Authorization: `Bearer ${STRIPE_SECRET}` }
+  });
+  if (!stripeRes.ok) return res.status(400).json({ error: 'Invalid Stripe session' });
+  const session = await stripeRes.json();
+  if (session.payment_status !== 'paid') {
+    return res.status(400).json({ error: 'Payment not completed' });
+  }
+
+  // 3. Idempotency — don't credit twice for the same session
+  const existingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/purchases?stripe_session_id=eq.${encodeURIComponent(session_id)}&select=id`,
+    { headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, apikey: SUPABASE_SERVICE_KEY } }
+  );
+  const existing = await existingRes.json();
+  if (existing.length > 0) {
+    return res.status(200).json({ already_processed: true, message: 'Credits already applied' });
+  }
+
+  // 4. Log the purchase
+  await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      apikey: SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal'
+    },
+    body: JSON.stringify({ user_id: user.id, stripe_session_id: session_id, credits_added: 3 })
+  });
+
+  // 5. Atomically add 3 credits
+  const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_credits`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      apikey: SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ user_id: user.id, amount: 3 })
+  });
+
+  if (!rpcRes.ok) {
+    const err = await rpcRes.text();
+    return res.status(500).json({ error: 'Failed to add credits', detail: err });
+  }
+
+  return res.status(200).json({ credits_added: 3 });
+}
